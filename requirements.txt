@@ -1,0 +1,8 @@
+streamlit
+torch
+TTS
+speechrecognition
+pydub
+PyPDF2==3.0.0
+pytesseract
+pillow
