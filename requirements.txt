@@ -1,8 +1,8 @@
 streamlit
 torch
-TTS
+TTS==0.6.0  # Replace with a compatible version
 speechrecognition
 pydub
-PyPDF2==3.0.0
+PyPDF2
 pytesseract
 pillow
