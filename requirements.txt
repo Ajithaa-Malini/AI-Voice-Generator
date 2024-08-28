@@ -1,8 +1,8 @@
-streamlit
-torch
-TTS==0.6.0  # Replace with a compatible version
-speechrecognition
-pydub
-PyPDF2
-pytesseract
-pillow
+streamlit>=1.38.0
+torch>=2.4.0
+TTS==0.6.0
+PyPDF2>=1.26.0
+pytesseract>=0.3.8
+Pillow>=9.2.0
+SpeechRecognition>=3.8.1
+pydub>=0.25.1
