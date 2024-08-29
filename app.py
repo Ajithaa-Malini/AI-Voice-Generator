@@ -1,73 +1,46 @@
 import streamlit as st
 from TTS.api import TTS
 import torch
-import PyPDF2
-import pytesseract
-from PIL import Image
 import speech_recognition as sr
+import io
 from pydub import AudioSegment
 
 # Initialize TTS model
-device = "cuda:0" if torch.cuda.is_available() else "cpu"
+device = "cuda" if torch.cuda.is_available() else "cpu"
 tts = TTS(model_name="tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=False).to(device)
 
-# Streamlit app setup
-st.title("Interactive Voice Cloning Web App")
+st.title("Voice Cloning Web App")
 
-# Step 1: Upload Document for Text Extraction
-st.header("Upload a Document")
-uploaded_file = st.file_uploader("Choose a file (PDF or Image)", type=["pdf", "png", "jpg", "jpeg"])
+# Real-time text input
+text = st.text_input("Enter text to synthesize:")
 
-def extract_text_from_pdf(pdf_file):
-    pdf_reader = PyPDF2.PdfFileReader(pdf_file)
-    text = ""
-    for page_num in range(pdf_reader.numPages):
-        text += pdf_reader.getPage(page_num).extractText()
-    return text
+# Upload voice input
+st.header("Upload Your Voice")
+uploaded_audio = st.file_uploader("Choose an audio file", type=["wav", "mp3", "ogg"])
 
-def extract_text_from_image(image_file):
-    image = Image.open(image_file)
-    return pytesseract.image_to_string(image)
+if uploaded_audio:
+    audio_segment = AudioSegment.from_file(uploaded_audio)
+    audio_bytes = io.BytesIO()
+    audio_segment.export(audio_bytes, format="wav")
+    audio_bytes.seek(0)
+    st.audio(audio_bytes, format="audio/wav")
+    recognizer = sr.Recognizer()
+    recorded_audio = sr.AudioFile(audio_bytes)
 
-if uploaded_file:
-    if uploaded_file.type == "application/pdf":
-        text = extract_text_from_pdf(uploaded_file)
+    # Generate speech if both text and voice are provided
+    if text:
+        output_path = "output_audio.wav"
+        with recorded_audio as source:
+            audio_data = recognizer.record(source)
+            tts.tts_to_file(
+                text=text,
+                speaker_wav=io.BytesIO(audio_data.get_wav_data()),
+                language="en",
+                file_path=output_path,
+                split_sentences=True
+            )
+        st.audio(output_path, format="audio/wav")
     else:
-        text = extract_text_from_image(uploaded_file)
-    st.write("Extracted Text:")
-    st.text_area("Text", text)
-
-# Step 2: Record Real-time Audio
-st.header("Record Your Voice")
-recognizer = sr.Recognizer()
-
-def record_audio():
-    with sr.Microphone() as source:
-        st.write("Recording...")
-        audio = recognizer.listen(source, timeout=5, phrase_time_limit=10)
-        st.write("Recording complete.")
-        return audio
-
-if st.button("Start Recording"):
-    recorded_audio = record_audio()
-
-if 'recorded_audio' in locals():
-    audio_path = "user_audio.wav"
-    with open(audio_path, "wb") as f:
-        f.write(recorded_audio.get_wav_data())
-    st.audio(audio_path)
-
-# Step 3: Generate Speech Using TTS
-st.header("Generate Speech")
-if 'text' in locals() and 'recorded_audio' in locals():
-    output_path = "output_audio.wav"
-    tts.tts_to_file(
-        text=text,
-        speaker_wav=audio_path,
-        language="en",  # Or "es" based on the extracted text's language
-        file_path=output_path,
-        split_sentences=True
-    )
-    st.audio(output_path)
+        st.warning("Please enter text to synthesize.")
 else:
-    st.warning("Please upload a document and record your voice first.")
+    st.warning("Please upload an audio file.")
